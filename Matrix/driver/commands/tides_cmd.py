@@ -52,7 +52,9 @@ class TidesCmd(PictureScrollBaseCmd):
         draw: ImageDraw.ImageDraw = ImageDraw.Draw(img)
         font = self.getFont("5x7.pil")
 
-        draw.line(self.tides_data["curve"], fill=CURVE_COLOR, width=1)
+        # Correct y-coordinates for the tide curve
+        corrected_curve = [(x, height - y) for x, y in self.tides_data["curve"]]
+        draw.line(corrected_curve, fill=CURVE_COLOR, width=1)
         
         for entry in self.tides_data["hilo"]:
             
