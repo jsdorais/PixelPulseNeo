@@ -26,7 +26,7 @@ class MeteoCmd(PictureScrollBaseCmd):
         self.refresh = True  # Enable refreshing of the display
         self.background: Image.Image | None = None  # Placeholder for the weather background image
         self.weather: dict[Any, Any] | None = None  # Placeholder for fetched weather data
-        self.recommended_duration = 20  # Recommended duration for displaying this command
+        self.recommended_duration = 30  # Recommended duration for displaying this command
 
     def update(self, args: list = [], kwargs: dict = {}) -> None:
         # Fetch today's weather data using the wttr.in API
@@ -64,9 +64,25 @@ class MeteoCmd(PictureScrollBaseCmd):
                 font5 = self.getFont("5x7.pil")
                 font6 = self.getFont("6x12.pil")
 
-                # Define the position for the temperature text
-                tempPos: tuple[int, int] = (10 + weatherIcon.size[0] + config.WEATHER_TEXT_OFFSET, 20)
-                draw.text(tempPos, temp, font=font6)  # Draw the current temperature
+                # Calculate dimensions of the temperature texts
+                temp_text_width, temp_text_height = font6.getbbox(temp)[2], font6.getbbox(temp)[3]  # Width and height of temp
+                feels_like_text_width, feels_like_text_height = font5.getbbox(tempFeelsLike)[2], font5.getbbox(tempFeelsLike)[3]  # Width and height of feels-like temp
+                total_text_height = temp_text_height + feels_like_text_height + 2  # Total height including spacing
+
+                # Calculate x and y positions to position the texts to the right of the icon
+                icon_right_x = 8 + weatherIcon.size[0] + 40  # X position to the right of the weather icon
+                centered_y = 8 + (weatherIcon.size[1] - total_text_height) // 2  # Y position to center vertically
+
+                # Draw the current temperature text (-4°C)
+                draw.text((icon_right_x, centered_y), temp, font=font6)
+
+                # Draw the "feels like" temperature text (-13°C), slightly below the main temperature
+                draw.text(
+                    (icon_right_x, centered_y + temp_text_height + 2),  # Add spacing below main temp
+                    tempFeelsLike,
+                    font=font5,
+                    fill=(150, 150, 150),  # Gray color
+                )
 
                 # Set the locale to French for date formatting
                 locale.setlocale(locale.LC_TIME, "fr_FR.UTF-8")
@@ -74,20 +90,11 @@ class MeteoCmd(PictureScrollBaseCmd):
                 date_str: str = datetime.now().strftime("%A %-d %B").capitalize()
                 date_str = re.sub(r"(\d+)(st|nd|rd|th)", r"\1", date_str)  # Remove ordinal suffixes
 
-                # Draw the "feels like" temperature
-                draw.text(
-                    (tempPos[0] + 2, tempPos[1] + 12),
-                    tempFeelsLike,
-                    font=font5,
-                    fill=(150, 150, 150),  # Draw text in gray
-                )
-
                 # Calculate the position to center the date on the display
                 _, _, text_width, text_height = font6.getbbox(date_str)
                 draw.text((width / 2 - text_width / 2 + config.WEATHER_TEXT_OFFSET, 5), date_str, font=font6)
 
-                # Store the temperature position and background image
-                self.tempPos: tuple[int, int] = tempPos
+                # Store the background image
                 self.background = img
             else:  # If no weather data is available
                 print("NO Weather info")  # Log a message
@@ -105,9 +112,8 @@ class MeteoCmd(PictureScrollBaseCmd):
                 draw.text((40, 4), " WTTR.in site is down", font=font6)
                 draw.text((40, 42), "  -- no weather info --", font=font5)
 
-                # Store the fallback image and position
+                # Store the fallback image
                 self.background = img
-                self.tempPos: tuple[int, int] = (32, 50)
 
         # Return a copy of the background image (or None if unavailable)
         if self.background:
