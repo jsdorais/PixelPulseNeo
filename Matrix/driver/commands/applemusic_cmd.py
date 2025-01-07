@@ -19,7 +19,7 @@ def load_image(img_url) -> Image.Image:
 class SpotifyCmd(PictureScrollBaseCmd):
     def __init__(self) -> None:
         super().__init__(
-            "spotify", "Displays information related to current played song on Spotify"
+            "applemusic", "Displays information related to current played song on Apple Music"
         )
         self.scroll = False
         self.refresh = True
