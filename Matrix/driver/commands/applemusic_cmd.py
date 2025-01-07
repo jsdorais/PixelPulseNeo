@@ -9,7 +9,7 @@ from Matrix.driver.commands.base import (
     get_total_matrix_height,
     get_icons_dir,
 )
-from Matrix.driver.commands.spotify import client
+from Matrix.driver.commands.applemusic import client
 
 
 def load_image(img_url) -> Image.Image:
