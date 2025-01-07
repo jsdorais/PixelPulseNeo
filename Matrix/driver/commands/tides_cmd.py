@@ -22,12 +22,12 @@ from PIL import ImageDraw
 CURVE_COLOR = (29,162,216)
 LINE_COLOR = (2, 26,46)
 
-TIME_COLOR = (127, 205,255)
+TIME_COLOR = (125,187,185)
 FEET_COLOR = (127, 205,255)
 
 NOW_COLOR = (118, 182,196)
 
-NAME_COLOR = (222, 243,246)
+NAME_COLOR = (216,211,208)
 
 class TidesCmd(PictureScrollBaseCmd):
     def __init__(self) -> None:
@@ -56,23 +56,35 @@ class TidesCmd(PictureScrollBaseCmd):
         corrected_curve = [(x, height - y) for x, y in self.tides_data["curve"]]
         draw.line(corrected_curve, fill=CURVE_COLOR, width=1)
         
+        offset = 1  # Add vertical offset for text
+
         for entry in self.tides_data["hilo"]:
             
             line_delta = 1
             if entry['type']=="H":
                 line_delta=-1
-                
-            draw.line([(entry['x'], entry['y']), (entry['x'], entry['y']+line_delta*35)], fill=LINE_COLOR)
+
+            # Removed the vertical line drawings
+            #draw.line([(entry['x'], entry['y']), (entry['x'], entry['y']+line_delta*35)], fill=LINE_COLOR)
             #draw.point([entry['x'], entry['y']], fill='red')
         
                     
             txt = f"{entry['t']}"
             _, _, text_width, text_height = font.getbbox(txt)
-            draw.text((entry['x']-text_width/2, entry['y']+line_delta*25-text_height), txt, font=font, fill=TIME_COLOR)
+            draw.text(
+                (entry['x']-text_width/2, entry['y']+line_delta*25-text_height+offset),
+                txt, 
+                font=font, 
+                fill=TIME_COLOR)
 
-            txt = f"{entry['v']}"
+             # Round water level to 1 decimal place and add 'ft'
+            txt = f"{round(entry['v'], 1)} ft"
             _, _, text_width, text_height = font.getbbox(txt)
-            draw.text((entry['x']-text_width/2, entry['y']+line_delta*25-text_height+10), txt, font=font, fill=TIME_COLOR)
+            draw.text(
+                (entry['x']-text_width/2, entry['y']+line_delta*25-text_height+10+offset), 
+                txt, 
+                font=font, 
+                fill=FEET_COLOR)
         
         x_now = self.tides_data["x_now"]
         draw.line([(x_now, 5), (x_now, 59)], fill=NOW_COLOR)
