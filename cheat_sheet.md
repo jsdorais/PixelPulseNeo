@@ -29,7 +29,7 @@
 
 ### Commit files
 
-    git commit
+    git commit -m "[message]"
 
 ### Send changes
 
