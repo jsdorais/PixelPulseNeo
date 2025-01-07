@@ -86,5 +86,6 @@ WEATHER_SCROLL:bool = False
 WEATHER_TEXT_OFFSET:int = 32
 
 #TIDES_STATION:str = "8511907" #Greenport
-TIDES_STATION:str = "8517847" #Brooklyn Bridge
+TIDES_STATION:str = "8511629" #Sag Harbor
+#TIDES_STATION:str = "8517847" #Brooklyn Bridge
 
