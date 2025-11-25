@@ -2,7 +2,7 @@
 # Configuration Interface to talk to LED Matrix
 
 # Control if we use the emulator or send data to LED Matrix via GPIO
-USE_EMULATOR = True
+USE_EMULATOR = False
 
 # Control if we go through IPC Comunication
 USE_IPC = True

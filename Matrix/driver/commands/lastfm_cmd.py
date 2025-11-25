@@ -5,6 +5,7 @@ from PIL import Image, ImageDraw
 from io import BytesIO
 import requests
 import os
+import time
 
 from Matrix.driver.commands.base import (
     PictureScrollBaseCmd,
@@ -18,13 +19,13 @@ from Matrix.driver.commands.lastfm.api import get_now_playing
 TEXT_COLOR = (255, 255, 255)       # White for main text
 ARTIST_COLOR = (127, 205, 255)     # Light blue for artist
 ALBUM_COLOR = (150, 150, 150)      # Gray for album
-NOW_PLAYING_COLOR = (255, 165, 0)  # Green for "NOW PLAYING"
+NOW_PLAYING_COLOR = (255, 165, 0)  # Orange for "NOW PLAYING"
 LAST_PLAYED_COLOR = (255, 165, 0)  # Orange for "LAST PLAYED"
 PLAYCOUNT_COLOR = (200, 200, 200)  # Light gray for playcount
 PREVIOUS_COLOR = (180, 180, 180)   # Gray for previous track
 
 
-class LastFmCmd(PictureScrollBaseCmd):
+class LastfmCmd(PictureScrollBaseCmd):
     def __init__(self) -> None:
         super().__init__("lastfm", "Displays Now Playing from Last.fm")
         self.scroll = False
@@ -33,17 +34,23 @@ class LastFmCmd(PictureScrollBaseCmd):
         self.recommended_duration = 30
         self.track_data = None
         self.album_art = None
+        self.last_fetch_time = 0
 
     def update(self, args: list = [], kwargs: dict = {}) -> None:
         """Fetch current track from Last.fm."""
+        self._fetch_fresh_data()
+        super().update(args=args, kwargs=kwargs)
+
+    def _fetch_fresh_data(self) -> None:
+        """Always fetch fresh data from Last.fm API."""
         self.track_data = get_now_playing()
-        self.album_art = None  # Clear cached art
+        self.album_art = None
         
         # Fetch album art if URL available
         if self.track_data and self.track_data.get("image_url"):
             self.album_art = self._fetch_album_art(self.track_data["image_url"])
         
-        super().update(args=args, kwargs=kwargs)
+        self.last_fetch_time = time.time()
 
     def _fetch_album_art(self, url: str) -> Image.Image | None:
         """Download and resize album art."""
@@ -56,15 +63,20 @@ class LastFmCmd(PictureScrollBaseCmd):
             img = img.resize((art_size, art_size), Image.Resampling.LANCZOS)
             return img
         except Exception as e:
-            print(f"❌ Failed to fetch album art: {e}")
+            print(f"[lastfm] Failed to fetch album art: {e}")
             return None
 
     def reset_state(self) -> None:
         super().reset_state()
         self.album_art = None
+        self.track_data = None
 
     def generate_image(self, args=[], kwargs={}) -> Image.Image | None:
         """Generate the display image with album art on left, info on right."""
+        # Fetch fresh data if stale (older than 5 seconds)
+        if time.time() - self.last_fetch_time > 5:
+            self._fetch_fresh_data()
+        
         width = get_total_matrix_width()
         height = get_total_matrix_height()
         
