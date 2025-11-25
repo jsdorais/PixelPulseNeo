@@ -40,7 +40,7 @@ class SplashCmd(PictureScrollBaseCmd):
         
         font5 = self.getFont("5x7.pil")
         draw: ImageDraw.ImageDraw = ImageDraw.Draw(img)
-        git_rev= probe.git_metrics()["git_rev"][:10]
+        git_rev = "2.0"
         draw.text((5, 55), f"V:{git_rev}", font=font5)
         
     def generate_image(self, args=[], kwargs={}) -> Image.Image | None:

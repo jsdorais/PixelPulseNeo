@@ -3,14 +3,14 @@
         "default": {
             "commands": [
                 {
-                    "command_name": "lastfm",
-                    "duration": 20.0,
+                    "command_name": "meteo",
+                    "duration": 60.0,
                     "args": [],
                     "kwargs": {}
                 },
                 {
-                    "command_name": "meteo",
-                    "duration": 30.0,
+                    "command_name": "lastfm",
+                    "duration": 120.0,
                     "args": [],
                     "kwargs": {}
                 },
