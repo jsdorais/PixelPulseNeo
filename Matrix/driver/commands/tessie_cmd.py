@@ -67,7 +67,7 @@ class TessieCmd(PictureScrollBaseCmd):
         self.recommended_duration = 30
         self.vehicle_data = {}
 
-    def update(self) -> None:
+    def update(self, args: list = [], kwargs: dict = {}) -> None:
         """Fetch Tesla data from Tessie API with fallback to mock data."""
         try:
             url = f"{BASE_URL}{TESSIE_API_KEY}"
@@ -118,7 +118,7 @@ class TessieCmd(PictureScrollBaseCmd):
             return TIRE_YELLOW  # Yellow if below 41
         return VALUE_COLOR  # Default white
 
-    def generate_image(self) -> Image.Image:
+    def generate_image(self, args=[], kwargs={}) -> Image.Image:
         """Generate the LED screen image for Tesla data."""
         print("✅ Generating Tesla display image...")
         width: int = get_total_matrix_width()

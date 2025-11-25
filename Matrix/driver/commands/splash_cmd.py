@@ -36,7 +36,7 @@ class SplashCmd(PictureScrollBaseCmd):
         ).convert("RGB")
         resized_icon = self._resize_icon(icon, max_height=64)
         offset = int((get_total_matrix_width() - resized_icon.size[0])/2)
-        img.paste(resized_icon, (offset,0))
+        img.paste(resized_icon, (offset-1,0))
         
         font5 = self.getFont("5x7.pil")
         draw: ImageDraw.ImageDraw = ImageDraw.Draw(img)
