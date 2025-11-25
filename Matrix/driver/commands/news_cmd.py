@@ -65,26 +65,6 @@ feeds: list[dict[str, str]] = [
         "name": "Gothamist",
         "logo": "gothamist.png",
     },
-    {
-        "url": "https://www.reddit.com/.rss",
-        "name": "Reddit Front",
-        "logo": "reddit.png",
-    },
-    {
-        "url": "https://www.reddit.com/r/salesforce/.rss",
-        "name": "r/salesforce",
-        "logo": "reddit.png",
-    },
-    {
-        "url": "https://www.reddit.com/r/visionpro/.rss",
-        "name": "r/visionpro",
-        "logo": "reddit.png",
-    },
-    {
-        "url": "https://www.reddit.com/r/applevisionpro/.rss",
-        "name": "r/applevisionpro",
-        "logo": "reddit.png",
-    },
 ]
 
 # Global pool of all articles from all feeds

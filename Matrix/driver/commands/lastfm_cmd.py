@@ -16,15 +16,18 @@ from Matrix.driver.commands.lastfm.api import get_now_playing
 
 
 # Colors
-TEXT_COLOR = (255, 255, 255)       # White for main text
-ARTIST_COLOR = (127, 205, 255)     # Light blue for artist
-ALBUM_COLOR = (150, 150, 150)      # Gray for album
-NOW_PLAYING_COLOR = (255, 165, 0)  # Orange for "NOW PLAYING"
-LAST_PLAYED_COLOR = (255, 165, 0)  # Orange for "LAST PLAYED"
-PLAYCOUNT_COLOR = (200, 200, 200)  # Light gray for playcount
-PREVIOUS_COLOR = (180, 180, 180)   # Gray for previous track
+TEXT_COLOR = (255, 255, 255)
+ARTIST_COLOR = (127, 205, 255)
+NOW_PLAYING_COLOR = (255, 165, 0)
+PLAYCOUNT_COLOR = (200, 200, 200)
+PREVIOUS_COLOR = (180, 180, 180)
 
 REFRESH_INTERVAL = 5  # seconds between API calls
+
+
+def log(msg: str) -> None:
+    """Print with flush for systemd."""
+    print(msg, flush=True)
 
 
 class LastfmCmd(PictureScrollBaseCmd):
@@ -33,50 +36,70 @@ class LastfmCmd(PictureScrollBaseCmd):
         self.scroll = False
         self.refresh = True
         self.refresh_timer = 1 / 30.0
-        self.recommended_duration = 30
+        self.recommended_duration = 3600
         self.track_data = None
         self.album_art = None
         self.last_fetch_time = 0
         self.cached_image = None
         self.last_track_name = None
+        self.is_playing = False
+        self.consecutive_not_playing = 0
 
     def update(self, args: list = [], kwargs: dict = {}) -> None:
         """Fetch current track from Last.fm."""
-        self._fetch_fresh_data()
+        log("[lastfm] update() called - forcing API check")
+        self._fetch_fresh_data(force=True)
         super().update(args=args, kwargs=kwargs)
 
-    def _fetch_fresh_data(self) -> None:
-        """Always fetch fresh data from Last.fm API."""
-        print(f"[lastfm] Fetching fresh data from API...")
+    def _fetch_fresh_data(self, force: bool = False) -> None:
+        """Fetch fresh data from Last.fm API."""
+        current_time = time.time()
+        time_since_fetch = current_time - self.last_fetch_time
+        
+        # Time gate - only fetch every REFRESH_INTERVAL seconds
+        if not force and time_since_fetch < REFRESH_INTERVAL:
+            return  # Too soon, skip
+        
+        self.last_fetch_time = current_time
+        log(f"[lastfm] Checking API (force={force}, time_since={time_since_fetch:.1f}s)...")
+        
         self.track_data = get_now_playing()
         
+        # Check if currently playing
+        self.is_playing = self.track_data.get("now_playing", False) if self.track_data else False
+        
+        if not self.is_playing:
+            self.consecutive_not_playing += 1
+            log(f"[lastfm] NOT PLAYING (count: {self.consecutive_not_playing})")
+            self.cached_image = None  # Clear cache to trigger exit check
+            return
+        
+        # Reset counter when playing
+        self.consecutive_not_playing = 0
+        log(f"[lastfm] Playing: {self.track_data.get('track')} by {self.track_data.get('artist')}")
+
         # Only fetch album art if track changed
         new_track = self.track_data.get("track") if self.track_data else None
         if new_track != self.last_track_name:
-            print(f"[lastfm] Track changed: {self.last_track_name} -> {new_track}")
+            log(f"[lastfm] Track changed: {self.last_track_name} -> {new_track}")
             self.album_art = None
             self.cached_image = None
             self.last_track_name = new_track
-            
-            # Fetch album art if URL available
+
             if self.track_data and self.track_data.get("image_url"):
                 self.album_art = self._fetch_album_art(self.track_data["image_url"])
-
-        self.last_fetch_time = time.time()
 
     def _fetch_album_art(self, url: str) -> Image.Image | None:
         """Download and resize album art."""
         try:
-            print(f"[lastfm] Fetching album art...")
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             img = Image.open(BytesIO(response.content)).convert("RGB")
-            # Resize to fit left side of display (square, fits height)
-            art_size = get_total_matrix_height() - 8  # Leave 4px margin top/bottom
+            art_size = get_total_matrix_height() - 8
             img = img.resize((art_size, art_size), Image.Resampling.LANCZOS)
             return img
         except Exception as e:
-            print(f"[lastfm] Failed to fetch album art: {e}")
+            log(f"[lastfm] Failed to fetch album art: {e}")
             return None
 
     def reset_state(self) -> None:
@@ -85,13 +108,29 @@ class LastfmCmd(PictureScrollBaseCmd):
         self.track_data = None
         self.cached_image = None
         self.last_track_name = None
+        self.is_playing = False
+        self.consecutive_not_playing = 0
+        self.last_fetch_time = 0
 
     def generate_image(self, args=[], kwargs={}) -> Image.Image | None:
-        """Generate the display image with album art on left, info on right."""
-        # Fetch fresh data if stale
-        if time.time() - self.last_fetch_time > REFRESH_INTERVAL:
-            self._fetch_fresh_data()
-            self.cached_image = None  # Force redraw
+        """Generate the display image."""
+        # Check for fresh data (time-gated inside _fetch_fresh_data)
+        self._fetch_fresh_data()
+
+        # If not playing for 2+ consecutive checks, exit this command
+        if not self.is_playing and self.consecutive_not_playing >= 2:
+            log(f"[lastfm] EXITING - music stopped (count={self.consecutive_not_playing})")
+            self.execution_done = True
+            return self.cached_image or Image.new("RGB", (get_total_matrix_width(), get_total_matrix_height()), color=(0, 0, 0))
+
+        # If not playing but first check, show cached or blank
+        if not self.is_playing:
+            if self.cached_image:
+                return self.cached_image
+            # No music, no cache - exit immediately
+            log(f"[lastfm] No music on start, skipping")
+            self.execution_done = True
+            return Image.new("RGB", (get_total_matrix_width(), get_total_matrix_height()), color=(0, 0, 0))
 
         # Return cached image if available
         if self.cached_image:
@@ -103,60 +142,44 @@ class LastfmCmd(PictureScrollBaseCmd):
         img = Image.new("RGB", (width, height), color=(0, 0, 0))
         draw = ImageDraw.Draw(img)
 
-        # Load fonts
         font_large = self.getFont("6x12.pil")
         font_small = self.getFont("5x7.pil")
 
         if not self.track_data:
-            # No data - show error
-            draw.text((10, 20), "No Last.fm data", font=font_large, fill=TEXT_COLOR)
-            draw.text((10, 35), "Check API key", font=font_small, fill=ALBUM_COLOR)
+            self.execution_done = True
             return img
 
         # === LEFT SIDE: Album Art ===
-        art_size = height - 8  # e.g., 56px if height is 64
+        art_size = height - 8
         art_x = 4
         art_y = 4
 
         if self.album_art:
             img.paste(self.album_art, (art_x, art_y))
         else:
-            # Draw placeholder box if no art
             draw.rectangle(
                 [art_x, art_y, art_x + art_size, art_y + art_size],
                 outline=(80, 80, 80),
                 fill=(30, 30, 30)
             )
-            # Music note placeholder
             draw.text((art_x + 18, art_y + 20), "?", font=font_large, fill=(80, 80, 80))
 
         # === RIGHT SIDE: Track Info ===
-        text_x = art_x + art_size + 8  # Start text after album art + margin
-        max_chars = (width - text_x) // 6  # Approximate char width for truncation
+        text_x = art_x + art_size + 8
+        max_chars = (width - text_x) // 6
 
-        # Status header (NOW PLAYING / LAST PLAYED)
-        if self.track_data["now_playing"]:
-            status = "NOW PLAYING"
-            status_color = NOW_PLAYING_COLOR
-        else:
-            status = "LAST PLAYED"
-            status_color = LAST_PLAYED_COLOR
+        draw.text((text_x, 2), "NOW PLAYING", font=font_small, fill=NOW_PLAYING_COLOR)
 
-        draw.text((text_x, 2), status, font=font_small, fill=status_color)
-
-        # Track name
         track_name = self.track_data.get("track", "Unknown")
         if len(track_name) > max_chars:
             track_name = track_name[:max_chars-1] + "..."
         draw.text((text_x, 12), track_name, font=font_large, fill=TEXT_COLOR)
 
-        # Artist
         artist = self.track_data.get("artist", "Unknown")
         if len(artist) > max_chars:
             artist = artist[:max_chars-1] + "..."
         draw.text((text_x, 26), artist, font=font_large, fill=ARTIST_COLOR)
 
-        # Previous track (Last Played)
         previous = self.track_data.get("previous")
         if previous:
             prev_track = previous.get("track", "")
@@ -166,11 +189,9 @@ class LastfmCmd(PictureScrollBaseCmd):
                 prev_text = prev_text[:max_chars+3] + "..."
             draw.text((text_x, 40), prev_text, font=font_small, fill=PREVIOUS_COLOR)
 
-        # Playcount
         playcount = self.track_data.get("playcount")
         if playcount:
-            pc_text = f"Plays: {playcount}"
-            draw.text((text_x, 52), pc_text, font=font_small, fill=PLAYCOUNT_COLOR)
+            draw.text((text_x, 52), f"Plays: {playcount}", font=font_small, fill=PLAYCOUNT_COLOR)
 
         self.cached_image = img
         return img

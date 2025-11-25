@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Last.fm API client for Now Playing functionality."""
-
 import os
 import requests
 
@@ -17,7 +16,7 @@ def get_recent_tracks(username: str = None, api_key: str = None, limit: int = 2)
     api_key = api_key or LASTFM_API_KEY
     
     if not username or not api_key:
-        print("❌ LASTFM_API_KEY or LASTFM_USERNAME not set!")
+        print("❌ LASTFM_API_KEY or LASTFM_USERNAME not set!", flush=True)
         return []
     
     params = {
@@ -32,8 +31,8 @@ def get_recent_tracks(username: str = None, api_key: str = None, limit: int = 2)
         resp = requests.get(API_URL, params=params, timeout=10)
         resp.raise_for_status()
         data = resp.json()
-        
         tracks = data.get("recenttracks", {}).get("track")
+        
         if not tracks:
             return []
         
@@ -42,7 +41,7 @@ def get_recent_tracks(username: str = None, api_key: str = None, limit: int = 2)
             return [tracks]
         return tracks
     except Exception as e:
-        print(f"❌ Last.fm API error: {e}")
+        print(f"❌ Last.fm API error: {e}", flush=True)
         return []
 
 
@@ -66,17 +65,26 @@ def get_user_playcount(artist: str, track: str, api_key: str = None, username: s
         data = resp.json()
         return data.get("track", {}).get("userplaycount")
     except Exception as e:
-        print(f"❌ Playcount error: {e}")
+        print(f"❌ Playcount error: {e}", flush=True)
         return None
 
 
 def extract_track_info(track_obj):
     """Convert Last.fm track object into a clean dict."""
+    # Check if currently playing:
+    # 1. Has @attr.nowplaying == "true" 
+    # 2. AND does NOT have a "date" field (scrobbled tracks have date, playing tracks don't)
+    has_nowplaying_attr = track_obj.get("@attr", {}).get("nowplaying") == "true"
+    has_date = "date" in track_obj
+    
+    # Only truly "now playing" if it has the attribute AND no date
+    is_now_playing = has_nowplaying_attr and not has_date
+    
     return {
         "track": track_obj.get("name"),
         "artist": track_obj.get("artist", {}).get("#text"),
         "album": track_obj.get("album", {}).get("#text"),
-        "now_playing": track_obj.get("@attr", {}).get("nowplaying") == "true",
+        "now_playing": is_now_playing,
         "image_url": extract_largest_image(track_obj.get("image", []))
     }
 
