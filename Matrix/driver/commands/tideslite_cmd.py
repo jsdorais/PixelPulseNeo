@@ -107,7 +107,7 @@ def _load_small_font() -> ImageFont.ImageFont:
         pass
     return ImageFont.load_default()
 
-class TidesLiteCmd(PictureScrollBaseCmd):
+class TidesliteCmd(PictureScrollBaseCmd):
     """
     Minimal tides display tuned for a 64px-high matrix (supports multi-panel width).
     Adds Hi/Lo markers with time labels and a station header.

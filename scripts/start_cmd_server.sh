@@ -1,6 +1,4 @@
 #!/bin/bash
-
-
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 LEDDRIVER_HOME=$(dirname $(realpath $SCRIPT_DIR))
 
@@ -25,6 +23,9 @@ fi
 # Change to the LEDDRIVER directory
 cd "$LEDDRIVER_HOME" || exit
 
+# Source secrets
+source /etc/PixelPulseNeo/secrets.conf
+
 # Source the Python virtual environment
 source venv/bin/activate
 
@@ -32,4 +33,3 @@ source venv/bin/activate
 # --scheduler: Run the scheduler
 # --listen: Start Socket server
 python -m Matrix.driver.executor --scheduler --listen
-
