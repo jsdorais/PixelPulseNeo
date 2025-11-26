@@ -84,6 +84,9 @@ export default class ApiService {
         return axios.get(`${BASE_URL}/power/wakeup`).then(res => res.data);
     }
 
+    static restart() {
+        return axios.get(`${BASE_URL}/power/restart`).then(res => res.data);
+    }
     static watchdog(state) {
         console.log(`${BASE_URL}/watchdog/` + state)
         return axios.post(`${BASE_URL}/watchdog/` + state).then(res => res.data);

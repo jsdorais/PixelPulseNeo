@@ -3,6 +3,12 @@
         "default": {
             "commands": [
                 {
+                    "command_name": "newsred",
+                    "duration": 300.0,
+                    "args": [],
+                    "kwargs": {}
+                },
+                {
                     "command_name": "tides",
                     "duration": 60.0,
                     "args": [],

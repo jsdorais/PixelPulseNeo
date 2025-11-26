@@ -490,3 +490,17 @@ if __name__ == "__main__":
 
     print(f"start API server with debug={debug} and use_reloader={reload}")
     app.run(debug=debug, use_reloader=reload, host="0.0.0.0")
+
+@api.route("/power/restart")
+class Restart(Resource):
+    def get(self):
+        """Restart the pixel-pulse-neo service.
+        """
+        import subprocess
+        try:
+            logger.info("Restarting pixel-pulse-neo service...")
+            subprocess.Popen(["sudo", "systemctl", "restart", "pixel-pulse-neo.service"])
+            return jsonify({"result": "Service restart initiated"})
+        except Exception as e:
+            logger.error(f"Error during restart: {e}")
+            return make_response(jsonify({"error": str(e)}), 500)

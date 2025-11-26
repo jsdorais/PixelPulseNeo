@@ -11,6 +11,7 @@ import BedtimeIcon from '@mui/icons-material/Bedtime';
 import AlarmOnIcon from '@mui/icons-material/AlarmOn';
 import NotificationsOffSharpIcon from '@mui/icons-material/NotificationsOffSharp';
 import NotificationAddSharpIcon from '@mui/icons-material/NotificationAddSharp';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import {BASE_URL} from '../services/ApiService'
 
 const metricIcons = {
@@ -55,6 +56,14 @@ const StatusViewer = () => {
       fetchMetrics()
     };
     
+    const handleRestart = () => {
+      if (window.confirm('Are you sure you want to restart the service?')) {
+        ApiService.restart()
+        alert('Service restart initiated. Page will reload in 5 seconds.');
+        setTimeout(() => window.location.reload(), 5000);
+      }
+    };
+
     const handleToggleWatchDog = (event) => {
       if (event.target.checked)
       {
@@ -83,6 +92,10 @@ const StatusViewer = () => {
             <Button variant="contained" color="primary" startIcon={<AlarmOnIcon />} disabled={metrics["sleeping"]===false} fullWidth
                     onClick={() => handleWakeup()}>Wake&nbsp;Up
             </Button>            
+            &nbsp;
+            <Button variant="contained" color="error" startIcon={<RestartAltIcon />} fullWidth
+                    onClick={() => handleRestart()}>Restart Service
+            </Button>
           </Grid>
 
           <Grid item xs={4}>
