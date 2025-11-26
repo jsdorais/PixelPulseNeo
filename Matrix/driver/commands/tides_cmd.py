@@ -3,6 +3,7 @@
 from typing import Any
 from PIL import Image, ImageDraw
 import math
+import os
 from Matrix.driver.commands.base import (
     PictureScrollBaseCmd,
     get_total_matrix_width,
@@ -27,6 +28,36 @@ SUNSET_COLOR = (255, 100, 100)    # Red-orange for sunset
 # Moon colors
 MOON_LIGHT = (230, 230, 210)      # Bright side of moon
 MOON_DARK = (60, 60, 70)          # Dark side of moon
+
+# Path to moon images (shared with lunar app)
+LUNAR_ICONS_DIR = os.path.join(os.path.dirname(__file__), "..", "icons", "lunar")
+
+# Phase icon to image file mapping
+MOON_IMAGES = {
+    "new": None,
+    "waxing_crescent": "waxing_crescent.png",
+    "first_quarter": "first_quarter.png",
+    "waxing_gibbous": "waxing_gibbous.png",
+    "full": "full_moon.png",
+    "waning_gibbous": "waning_gibbous.png",
+    "last_quarter": "last_quarter.png",
+    "waning_crescent": "waning_crescent.png",
+}
+# Path to moon images (shared with lunar app)
+LUNAR_ICONS_DIR = os.path.join(os.path.dirname(__file__), "..", "icons", "lunar")
+
+# Phase icon to image file mapping
+MOON_IMAGES = {
+    "new": None,
+    "waxing_crescent": "waxing_crescent.png",
+    "first_quarter": "first_quarter.png",
+    "waxing_gibbous": "waxing_gibbous.png",
+    "full": "full_moon.png",
+    "waning_gibbous": "waning_gibbous.png",
+    "last_quarter": "last_quarter.png",
+    "waning_crescent": "waning_crescent.png",
+}
+
 
 
 class TidesCmd(PictureScrollBaseCmd):
@@ -56,29 +87,25 @@ class TidesCmd(PictureScrollBaseCmd):
             y2 = y + int((radius + ray_len + 2) * math.sin(rad))
             draw.line([(x1, y1), (x2, y2)], fill=color, width=1)
 
-    def _draw_moon(self, draw, x, y, radius=20, phase_icon="full"):
-        """Draw moon based on phase using circular shadow."""
-        # Draw the lit portion (full circle)
-        draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=MOON_LIGHT)
-        
-        # Calculate shadow based on phase
-        if phase_icon == "new":
-            draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=MOON_DARK)
-        elif phase_icon == "full":
-            pass
-        elif phase_icon == "waxing_crescent":
-            draw.ellipse([x - radius - 8, y - radius, x + radius - 8, y + radius], fill=MOON_DARK)
-        elif phase_icon == "first_quarter":
-            draw.pieslice([x - radius, y - radius, x + radius, y + radius], 90, 270, fill=MOON_DARK)
-        elif phase_icon == "waxing_gibbous":
-            draw.ellipse([x - radius - 12, y - radius, x + 4, y + radius], fill=MOON_DARK)
-        elif phase_icon == "waning_gibbous":
-            draw.ellipse([x - 4, y - radius, x + radius + 12, y + radius], fill=MOON_DARK)
-        elif phase_icon == "last_quarter":
-            draw.pieslice([x - radius, y - radius, x + radius, y + radius], 270, 90, fill=MOON_DARK)
-        elif phase_icon == "waning_crescent":
-            draw.ellipse([x - radius + 8, y - radius, x + radius + 8, y + radius], fill=MOON_DARK)
-
+    def _draw_moon(self, img, x, y, radius=20, phase_icon="full"):
+        """Draw moon using image from lunar icons."""
+        image_file = MOON_IMAGES.get(phase_icon)
+        if image_file:
+            image_path = os.path.join(LUNAR_ICONS_DIR, image_file)
+            try:
+                moon_img = Image.open(image_path).convert("RGBA")
+                size = radius * 2
+                moon_img = moon_img.resize((size, size), Image.Resampling.LANCZOS)
+                moon_rgb = Image.new("RGB", moon_img.size, (0, 0, 10))
+                moon_rgb.paste(moon_img, mask=moon_img.split()[3] if moon_img.mode == 'RGBA' else None)
+                img.paste(moon_rgb, (x - radius, y - radius))
+            except Exception as e:
+                print(f"[tides] Error loading moon image: {e}", flush=True)
+                draw = ImageDraw.Draw(img)
+                draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=MOON_LIGHT)
+        else:
+            draw = ImageDraw.Draw(img)
+            draw.ellipse([x - radius, y - radius, x + radius, y + radius], outline=MOON_DARK, width=1)
     def generate_image(self, args: list = [], kwargs: dict = {}) -> Image.Image:
         width: int = get_total_matrix_width()
         height: int = get_total_matrix_height()
@@ -184,7 +211,7 @@ class TidesCmd(PictureScrollBaseCmd):
         moon_y = 22
         
         # Draw larger moon
-        self._draw_moon(draw, moon_x, moon_y, radius=18, phase_icon=moon.get("icon", "full"))
+        self._draw_moon(img, moon_x, moon_y, radius=18, phase_icon=moon.get("icon", "full"))
         
         # Moon phase name - split into two lines if needed
         phase_name = moon.get("name", "Moon")

@@ -112,28 +112,28 @@ def get_moon_phase():
     illumination = (1 - math.cos(2 * math.pi * phase_pct)) / 2
     
     # Determine phase name
-    if phase_pct < 0.0625:
+    if phase_pct < 0.025 or phase_pct >= 0.975:
         phase_name = "New Moon"
         phase_icon = "new"
-    elif phase_pct < 0.1875:
+    elif phase_pct < 0.225:
         phase_name = "Waxing Crescent"
         phase_icon = "waxing_crescent"
-    elif phase_pct < 0.3125:
+    elif phase_pct < 0.275:
         phase_name = "First Quarter"
         phase_icon = "first_quarter"
-    elif phase_pct < 0.4375:
+    elif phase_pct < 0.475:
         phase_name = "Waxing Gibbous"
         phase_icon = "waxing_gibbous"
-    elif phase_pct < 0.5625:
+    elif phase_pct < 0.525:
         phase_name = "Full Moon"
         phase_icon = "full"
-    elif phase_pct < 0.6875:
+    elif phase_pct < 0.725:
         phase_name = "Waning Gibbous"
         phase_icon = "waning_gibbous"
-    elif phase_pct < 0.8125:
+    elif phase_pct < 0.775:
         phase_name = "Last Quarter"
         phase_icon = "last_quarter"
-    elif phase_pct < 0.9375:
+    elif phase_pct < 0.975:
         phase_name = "Waning Crescent"
         phase_icon = "waning_crescent"
     else:

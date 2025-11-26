@@ -52,7 +52,8 @@ class StocksCmd(PictureScrollBaseCmd):
             self.font_large = ImageFont.load_default()
             self.font_small = ImageFont.load_default()
         
-        # Fetch initial data
+        # Always fetch fresh data on update (when command starts)
+        self.last_fetch = None
         self._fetch_stock_data()
         
         return super().update(args, kwargs)
@@ -71,7 +72,11 @@ class StocksCmd(PictureScrollBaseCmd):
             try:
                 ticker = yf.Ticker(symbol)
                 
-                # Get today's intraday data (1 minute intervals)
+                # Get quote info for previous close
+                info = ticker.info
+                previous_close = info.get('previousClose') or info.get('regularMarketPreviousClose')
+                
+                # Get today's intraday data (5 minute intervals)
                 hist = ticker.history(period="1d", interval="5m")
                 
                 if hist.empty:
@@ -79,10 +84,16 @@ class StocksCmd(PictureScrollBaseCmd):
                     hist = ticker.history(period="2d", interval="5m")
                 
                 if not hist.empty:
-                    # Get current price and change
+                    # Get current price
                     current_price = hist['Close'].iloc[-1]
-                    open_price = hist['Open'].iloc[0]
-                    change_pct = ((current_price - open_price) / open_price) * 100
+                    
+                    # Calculate change from previous close (standard stock market calculation)
+                    if previous_close:
+                        change_pct = ((current_price - previous_close) / previous_close) * 100
+                    else:
+                        # Fallback to open if no previous close
+                        open_price = hist['Open'].iloc[0]
+                        change_pct = ((current_price - open_price) / open_price) * 100
                     
                     # Get chart data (closing prices)
                     prices = hist['Close'].tolist()

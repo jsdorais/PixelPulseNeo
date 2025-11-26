@@ -75,7 +75,7 @@ class NewsredCmd(PictureScrollBaseCmd):
         # Load Liberation Sans Bold font
         try:
             self.font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf", 
+                "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf", 
                 54
             )
         except Exception as e:
@@ -100,7 +100,7 @@ class NewsredCmd(PictureScrollBaseCmd):
         
         # Measure text at scaled size
         scaled_font = ImageFont.truetype(
-            "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
             54 * scale
         )
         
