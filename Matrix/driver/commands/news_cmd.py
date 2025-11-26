@@ -65,6 +65,16 @@ feeds: list[dict[str, str]] = [
         "name": "Gothamist",
         "logo": "gothamist.png",
     },
+    {
+        "url": "https://www.theverge.com/rss/index.xml",
+        "name": "The Verge",
+        "logo": "verge.png",
+    },
+    {
+        "url": "https://ici.radio-canada.ca/info/rss/info/a-la-une",
+        "name": "Radio-Canada",
+        "logo": "cbc.png",
+    },
 ]
 
 # Global pool of all articles from all feeds
@@ -129,11 +139,13 @@ class NewsCmd(PictureScrollBaseCmd):
         self.thumb_img = None
         self.logo_img = None
         self.logo_x = 0
+        self.short_article_start = 0  # Timer for non-scrolling articles
 
     def update(self, args: list = [], kwargs: dict = {}) -> str:
         # Get a random article from the pool
         self.current_entry, self.feed_definition = get_random_article()
         self.scroll_x = 0
+        self.short_article_start = 0  # Reset timer
         self.thumb_img = None
         self.logo_img = None
         self.thumb_width = 0
@@ -220,6 +232,37 @@ class NewsCmd(PictureScrollBaseCmd):
             text_x = width - self.scroll_x
             draw.text((text_x, text_y), summary, font=font_big)
         else:
+            # Short article - display for 5 seconds then advance
+            import time
+            if self.short_article_start == 0:
+                self.short_article_start = time.time()
+            elif time.time() - self.short_article_start > 5:
+                # Time's up - get next article
+                self.current_entry, self.feed_definition = get_random_article()
+                self.scroll_x = 0
+                self.short_article_start = 0
+                # Reload assets for new article
+                self.thumb_img = None
+                self.logo_img = None
+                self.thumb_width = 0
+                if self.current_entry and self.feed_definition:
+                    try:
+                        thumb_url = self.current_entry.media_thumbnail[0]["url"]
+                        thumb = feed.getImage(thumb_url)
+                        self.thumb_img = self._resize_icon(thumb, max_height=height)
+                        self.thumb_width = self.thumb_img.size[0]
+                    except:
+                        pass
+                    try:
+                        icon = Image.open(
+                            get_icons_dir(f"news/{self.feed_definition['logo']}")
+                        ).convert("RGB")
+                        self.logo_img = self._resize_icon(icon, max_height=30)
+                        self.logo_x = width - self.logo_img.size[0] - 1
+                    except:
+                        pass
+                    summary = getattr(self.current_entry, 'title', '') or getattr(self.current_entry, 'summary', '')
+                    _, _, self.text_width, _ = font_big.getbbox(summary)
             draw.text((5, text_y), summary, font=font_big)
 
         # Now paste thumbnail ON TOP of text (so text scrolls under it)

@@ -3,6 +3,12 @@
         "default": {
             "commands": [
                 {
+                    "command_name": "tides",
+                    "duration": 60.0,
+                    "args": [],
+                    "kwargs": {}
+                },
+                {
                     "command_name": "lastfm",
                     "duration": 3600.0,
                     "args": [],
@@ -23,12 +29,6 @@
                 {
                     "command_name": "meteo",
                     "duration": 60.0,
-                    "args": [],
-                    "kwargs": {}
-                },
-                {
-                    "command_name": "tides",
-                    "duration": 20.0,
                     "args": [],
                     "kwargs": {}
                 }

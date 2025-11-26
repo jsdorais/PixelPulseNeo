@@ -13,6 +13,7 @@ from PIL import ImageDraw
 from PIL import ImageChops
 from Matrix.driver.utilz import configure_log, DARKCYAN
 from Matrix.driver.commands.msg_stack import MessageStack, get_message_stack
+from Matrix.driver.brightness import get_current_brightness, update_matrix_brightness
 from Matrix.driver import power
 from Matrix.config import (
     MATRIX_CHAINED,
@@ -86,6 +87,7 @@ def getMatrixOptions() -> RGBMatrixOptions:
     options.chain_length = get_matrix_chained()
     options.parallel = 1
     options.hardware_mapping = "regular"
+    options.brightness = get_current_brightness()
     if not USE_EMULATOR:
         options.drop_privileges = False  # type: ignore
         # slow down GPIO when running on PI3 to avoid bad rendering on chained panels
@@ -255,6 +257,7 @@ class BaseCommand:
                     if frame_nb >0 and frame_nb %500==0:
                         fps: float = int(frame_nb / (time.time() - t0)) 
                         logger.info(f"[{self.name}] fps={fps}")
+                        update_matrix_brightness(get_matrix())
                         #print(f"[{self.name}] FPS = {fps}")
                 return (res, None)
         except Exception as e:

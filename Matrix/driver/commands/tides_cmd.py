@@ -1,101 +1,202 @@
-
+"""Tides, Sun, and Moon display command."""
 
 from typing import Any
-from PIL import Image
-from PIL import ImageDraw
+from PIL import Image, ImageDraw
+import math
 from Matrix.driver.commands.base import (
     PictureScrollBaseCmd,
     get_total_matrix_width,
     get_total_matrix_height,
 )
-from Matrix import config
-import Matrix.driver.commands.mta.route as route
-from Matrix.driver.commands.mta.stops import stopResolverSingleton
-import Matrix.driver.commands.mta.bus as bus
-
 from Matrix.driver.commands.tidesandcurrents import api
-from Matrix import config
-from PIL import Image
-from PIL import ImageDraw
 
-# Define colors for different elements of the image
-CURVE_COLOR = (29, 162, 216)  # Blue color for the tide curve
-LINE_COLOR = (2, 26, 46)      # Dark color for optional vertical lines (currently unused)
-TIME_COLOR = (125, 187, 185)  # Light teal color for time text
-FEET_COLOR = (127, 205, 255)  # Blue color for water level text
-NOW_COLOR = (118, 182, 196)   # Teal color for the "current time" line
-NAME_COLOR = (216, 211, 208)  # Light gray color for the station name
+# Colors
+CURVE_COLOR = (0, 119, 182)       # Ocean blue for tide curve
+NOW_LINE_COLOR = (255, 200, 50)   # Golden yellow for current time
+TIME_COLOR = (150, 200, 220)      # Light blue for tide times
+FEET_COLOR = (100, 180, 255)      # Bright blue for water levels
+NAME_COLOR = (180, 180, 180)      # Gray for station name
+HIGH_COLOR = (100, 255, 150)      # Green for high tide
+LOW_COLOR = (255, 150, 100)       # Orange for low tide
+
+# Sun colors
+SUN_COLOR = (255, 200, 50)        # Yellow for sun
+SUNRISE_COLOR = (255, 150, 80)    # Orange for sunrise
+SUNSET_COLOR = (255, 100, 100)    # Red-orange for sunset
+
+# Moon colors
+MOON_LIGHT = (230, 230, 210)      # Bright side of moon
+MOON_DARK = (60, 60, 70)          # Dark side of moon
+
 
 class TidesCmd(PictureScrollBaseCmd):
     def __init__(self) -> None:
-        # Initialize the Tides command with default parameters
-        super().__init__(
-            "tides", "Displays tides info from station"
-        )
-        self.scroll = False  # Disable scrolling
-        self.refresh = False  # Disable automatic refresh
-        self.speed_x = 0  # Horizontal scrolling speed (not used)
-        self.speed_y = 0  # Vertical scrolling speed (not used)
-        self.recommended_duration = 30  # Recommended display duration in seconds
-        self.tides_data = {}  # Placeholder for tide data
+        super().__init__("tides", "Displays tides, sun, and moon info")
+        self.scroll = False
+        self.refresh = False
+        self.recommended_duration = 30
+        self.tides_data = {}
 
     def update(self, args=[], kwargs={}) -> None:
-        # Fetch the tide data from the API and store it in `self.tides_data`
         self.tides_data = api.get_tide_data()
         super().update(args, kwargs)
 
+    def _draw_sun_icon(self, draw, x, y, radius=6, rising=True):
+        """Draw a simple sun icon with rays."""
+        color = SUNRISE_COLOR if rising else SUNSET_COLOR
+        # Sun circle
+        draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=SUN_COLOR)
+        # Rays
+        ray_len = 4
+        for angle in range(0, 360, 45):
+            rad = math.radians(angle)
+            x1 = x + int((radius + 2) * math.cos(rad))
+            y1 = y + int((radius + 2) * math.sin(rad))
+            x2 = x + int((radius + ray_len + 2) * math.cos(rad))
+            y2 = y + int((radius + ray_len + 2) * math.sin(rad))
+            draw.line([(x1, y1), (x2, y2)], fill=color, width=1)
+
+    def _draw_moon(self, draw, x, y, radius=20, phase_icon="full"):
+        """Draw moon based on phase using circular shadow."""
+        # Draw the lit portion (full circle)
+        draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=MOON_LIGHT)
+        
+        # Calculate shadow based on phase
+        if phase_icon == "new":
+            draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=MOON_DARK)
+        elif phase_icon == "full":
+            pass
+        elif phase_icon == "waxing_crescent":
+            draw.ellipse([x - radius - 8, y - radius, x + radius - 8, y + radius], fill=MOON_DARK)
+        elif phase_icon == "first_quarter":
+            draw.pieslice([x - radius, y - radius, x + radius, y + radius], 90, 270, fill=MOON_DARK)
+        elif phase_icon == "waxing_gibbous":
+            draw.ellipse([x - radius - 12, y - radius, x + 4, y + radius], fill=MOON_DARK)
+        elif phase_icon == "waning_gibbous":
+            draw.ellipse([x - 4, y - radius, x + radius + 12, y + radius], fill=MOON_DARK)
+        elif phase_icon == "last_quarter":
+            draw.pieslice([x - radius, y - radius, x + radius, y + radius], 270, 90, fill=MOON_DARK)
+        elif phase_icon == "waning_crescent":
+            draw.ellipse([x - radius + 8, y - radius, x + radius + 8, y + radius], fill=MOON_DARK)
+
     def generate_image(self, args: list = [], kwargs: dict = {}) -> Image.Image:
-        # Get the dimensions of the display matrix
         width: int = get_total_matrix_width()
         height: int = get_total_matrix_height()
 
-        # Create a blank image with a black background
-        img: Image.Image = Image.new("RGB", (width, height), color=(0, 0, 0))
+        img: Image.Image = Image.new("RGB", (width, height), color=(0, 0, 10))
         draw: ImageDraw.ImageDraw = ImageDraw.Draw(img)
-        font = self.getFont("5x7.pil")  # Load the font for text
+        
+        font_small = self.getFont("5x7.pil")
+        font_med = self.getFont("6x12.pil")
 
-        # Correct y-coordinates for the tide curve to invert them for the display
-        corrected_curve = [(x, height - y) for x, y in self.tides_data["curve"]]
-        # Draw the tide curve
-        draw.line(corrected_curve, fill=CURVE_COLOR, width=1)
+        # === LEFT PANEL: Sun Info (0-64px) ===
+        # Sunrise - top left corner
+        self._draw_sun_icon(draw, 12, 12, radius=5, rising=True)
+        sunrise = self.tides_data.get("sun", {}).get("sunrise", "N/A")
+        draw.text((25, 7), sunrise, font=font_med, fill=SUNRISE_COLOR)
+        
+        # Sunset - bottom left corner
+        self._draw_sun_icon(draw, 12, 52, radius=5, rising=False)
+        sunset = self.tides_data.get("sun", {}).get("sunset", "N/A")
+        draw.text((25, 47), sunset, font=font_med, fill=SUNSET_COLOR)
 
-        offset = 1  # Add a small vertical offset for text placement
+        # === CENTER PANELS 2-4: Tide Curve (64-256px) ===
+        tide_offset_x = 64
+        tide_end_x = 256
+        tide_width = tide_end_x - tide_offset_x
 
-        # Iterate over High (H) and Low (L) tide data points
-        for entry in self.tides_data["hilo"]:
-            # Determine the direction of the offset based on whether it's High or Low tide
-            line_delta = 1
-            if entry['type'] == "H":
-                line_delta = -1
+        # Draw tide curve
+        if self.tides_data.get("curve"):
+            original_width = 320
+            scale = tide_width / original_width
+            
+            curve = self.tides_data["curve"]
+            corrected_curve = []
+            for x, y in curve:
+                new_x = tide_offset_x + int(x * scale)
+                new_y = height - y
+                corrected_curve.append((new_x, new_y))
+            
+            # Draw filled area under curve
+            if len(corrected_curve) > 2:
+                fill_points = corrected_curve.copy()
+                fill_points.append((corrected_curve[-1][0], height))
+                fill_points.append((corrected_curve[0][0], height))
+                draw.polygon(fill_points, fill=(0, 40, 70))
+            
+            # Draw the curve line
+            draw.line(corrected_curve, fill=CURVE_COLOR, width=2)
 
-            # Time text for the tide point
-            txt = f"{entry['t']}"  # Format the time as a string
-            _, _, text_width, text_height = font.getbbox(txt)  # Get text dimensions
-            draw.text(
-                (entry['x'] - text_width / 2, entry['y'] + line_delta * 25 - text_height + offset),
-                txt,
-                font=font,
-                fill=TIME_COLOR,  # Use the defined time color
-            )
+            # Draw current time line
+            x_now = self.tides_data.get("x_now")
+            if x_now:
+                x_now_scaled = tide_offset_x + int(x_now * scale)
+                draw.line([(x_now_scaled, 8), (x_now_scaled, 58)], fill=NOW_LINE_COLOR, width=1)
+                draw.polygon([(x_now_scaled - 3, 8), (x_now_scaled + 3, 8), (x_now_scaled, 12)], fill=NOW_LINE_COLOR)
 
-            # Water level text for the tide point
-            txt = f"{round(entry['v'], 1)} ft"  # Format the water level with 1 decimal and add 'ft'
-            _, _, text_width, text_height = font.getbbox(txt)  # Get text dimensions
-            draw.text(
-                (entry['x'] - text_width / 2, entry['y'] + line_delta * 25 - text_height + 10 + offset),
-                txt,
-                font=font,
-                fill=FEET_COLOR,  # Use the defined feet color
-            )
+            # Draw high/low tide markers
+            for entry in self.tides_data.get("hilo", []):
+                if entry.get("x") is None:
+                    continue
+                x = tide_offset_x + int(entry["x"] * scale)
+                y = height - entry["y"]
+                
+                is_high = entry["type"] == "H"
+                marker_color = HIGH_COLOR if is_high else LOW_COLOR
+                
+                # Draw marker dot
+                draw.ellipse([x - 2, y - 2, x + 2, y + 2], fill=marker_color)
+                
+                # Time label
+                t = entry["t"]
+                if ":" in t:
+                    parts = t.split(":")
+                    hour = int(parts[0])
+                    mins = parts[1]
+                    t_short = f"{hour}:{mins}"
+                else:
+                    t_short = t
+                
+                # Water level
+                v_text = f"{round(entry['v'], 1)}'"
+                
+                _, _, tw, _ = font_small.getbbox(t_short)
+                _, _, vw, _ = font_small.getbbox(v_text)
+                
+                if is_high:
+                    text_y = y + 4
+                    draw.text((x - tw // 2, text_y), t_short, font=font_small, fill=TIME_COLOR)
+                    draw.text((x - vw // 2, text_y + 8), v_text, font=font_small, fill=FEET_COLOR)
+                else:
+                    text_y = y - 18
+                    draw.text((x - tw // 2, text_y), t_short, font=font_small, fill=TIME_COLOR)
+                    draw.text((x - vw // 2, text_y + 8), v_text, font=font_small, fill=FEET_COLOR)
 
-        # Draw the "current time" vertical line
-        x_now = self.tides_data["x_now"]  # X-coordinate of the current time
-        draw.line([(x_now, 5), (x_now, 59)], fill=NOW_COLOR)
+        # Station name at top of tide area
+        name = self.tides_data.get("name", "Unknown")
+        if name and len(name) > 18:
+            name = name[:18]
+        draw.text((tide_offset_x + 5, 1), name, font=font_small, fill=NAME_COLOR)
 
-        # Draw the station name at the top-left corner
-        font = self.getFont("6x12.pil")  # Load a larger font for the station name
-        name = self.tides_data["name"]  # Get the name of the station
-        draw.text((5, 1), name, font=font, fill=NAME_COLOR)
+        # === RIGHT PANEL 5: Moon Info (256-320px) ===
+        moon = self.tides_data.get("moon", {})
+        moon_x = 288
+        moon_y = 22
+        
+        # Draw larger moon
+        self._draw_moon(draw, moon_x, moon_y, radius=18, phase_icon=moon.get("icon", "full"))
+        
+        # Moon phase name - split into two lines if needed
+        phase_name = moon.get("name", "Moon")
+        words = phase_name.split()
+        
+        if len(words) == 2:
+            _, _, tw1, _ = font_small.getbbox(words[0])
+            _, _, tw2, _ = font_small.getbbox(words[1])
+            draw.text((moon_x - tw1 // 2, moon_y + 22), words[0], font=font_small, fill=MOON_LIGHT)
+            draw.text((moon_x - tw2 // 2, moon_y + 31), words[1], font=font_small, fill=MOON_LIGHT)
+        else:
+            _, _, tw, _ = font_small.getbbox(phase_name)
+            draw.text((moon_x - tw // 2, moon_y + 22), phase_name, font=font_small, fill=MOON_LIGHT)
 
-        # Return the generated image
         return img
