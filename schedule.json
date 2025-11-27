@@ -27,6 +27,18 @@
                     "kwargs": {}
                 },
                 {
+                    "command_name": "spacex",
+                    "duration": 120.0,
+                    "args": [],
+                    "kwargs": {}
+                },
+                {
+                    "command_name": "youtube",
+                    "duration": 120.0,
+                    "args": [],
+                    "kwargs": {}
+                },
+                {
                     "command_name": "lunar",
                     "duration": 60.0,
                     "args": [],
