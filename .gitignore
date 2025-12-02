@@ -13,3 +13,4 @@ Matrix/driver/commands/youtube_token.json
 test_youtube*.py
 youtube_oauth_setup.py
 .DS_Store
+._*
