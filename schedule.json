@@ -3,12 +3,6 @@
         "default": {
             "commands": [
                 {
-                    "command_name": "newsred",
-                    "duration": 300.0,
-                    "args": [],
-                    "kwargs": {}
-                },
-                {
                     "command_name": "stocks",
                     "duration": 120.0,
                     "args": [],

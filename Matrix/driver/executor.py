@@ -9,6 +9,7 @@ import traceback
 from Matrix.models.Commands import CommandEntry
 from Matrix.driver.base_executor import BaseCommandExecutor, synchronized_method
 from Matrix.driver.scheduler import Scheduler
+from Matrix.driver.sleep_schedule import start_scheduler as start_sleep_scheduler
 from Matrix.driver.ipc.server import IPCServer
 from Matrix.models.Commands import CommandExecutionLog
 from Matrix.driver.utilz import configure_log, CYAN
@@ -65,6 +66,8 @@ class CommandExecutor(BaseCommandExecutor, IPCServer):
         self.schedule_thread = threading.Thread(target=self._scheduler_loop, args=())
         self.schedule_thread.start()
 
+        # Start sleep schedule manager
+        start_sleep_scheduler(self)
         self.sleep_mode_activated:bool = False
         if WATCHDOG_ON is True and no_watchdog is False:
             logger.info("starting watchdog thread")

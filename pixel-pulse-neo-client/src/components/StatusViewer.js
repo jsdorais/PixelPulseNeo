@@ -12,7 +12,9 @@ import AlarmOnIcon from '@mui/icons-material/AlarmOn';
 import NotificationsOffSharpIcon from '@mui/icons-material/NotificationsOffSharp';
 import NotificationAddSharpIcon from '@mui/icons-material/NotificationAddSharp';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import {BASE_URL} from '../services/ApiService'
+import {BASE_URL} from '../services/ApiService';
+import BrightnessControl from './BrightnessControl';
+import SleepScheduleControl from './SleepScheduleControl';
 
 const metricIcons = {
     cpu_freq: <SpeedIcon />,
@@ -31,21 +33,20 @@ const metricIcons = {
 
 const StatusViewer = () => {
     const [metrics, setMetrics] = useState({});
-  
+
     const fetchMetrics = async () => {
       ApiService.getMetrics().then((metrics) => {
-        //console.log(metrics)
         setMetrics(metrics)
       })
     };
     useEffect(() => {
       fetchMetrics().catch(console.error);
     }, []);
-  
+
     if (!metrics) {
       return <Typography>Loading...</Typography>;
     }
-  
+
     const handleSleep = () => {
       ApiService.sleep()
       fetchMetrics()
@@ -55,7 +56,7 @@ const StatusViewer = () => {
       ApiService.wakeup()
       fetchMetrics()
     };
-    
+
     const handleRestart = () => {
       if (window.confirm('Are you sure you want to restart the service?')) {
         ApiService.restart()
@@ -78,20 +79,20 @@ const StatusViewer = () => {
     return (
         <Container maxWidth="lg" >
         <Grid container spacing={3}>
-          
+
           <Grid item xs={12}>
             <Typography variant="h6" component="h6"> Power Management: </Typography>
           </Grid>
-          
+
           <Grid item xs={4}>
-          &nbsp; 
+          &nbsp;
             <Button variant="contained" color="primary" startIcon={<BedtimeIcon />} disabled={metrics["sleeping"]===true} fullWidth
                     onClick={() => handleSleep()}>Sleep
             </Button>
-            &nbsp; 
+            &nbsp;
             <Button variant="contained" color="primary" startIcon={<AlarmOnIcon />} disabled={metrics["sleeping"]===false} fullWidth
                     onClick={() => handleWakeup()}>Wake&nbsp;Up
-            </Button>            
+            </Button>
             &nbsp;
             <Button variant="contained" color="error" startIcon={<RestartAltIcon />} fullWidth
                     onClick={() => handleRestart()}>Restart Service
@@ -101,38 +102,52 @@ const StatusViewer = () => {
           <Grid item xs={4}>
             <Typography align="center">{metrics["sleeping"]? "Matrix is asleep" : "Matrix is on"}</Typography>
             <Typography align="center">
-            {metrics["sleeping"]? 
-            (<img src={`${BASE_URL}/../web/pictures/sleep.png`} width="100%" alt="asleep"/>) : 
+            {metrics["sleeping"]?
+            (<img src={`${BASE_URL}/../web/pictures/sleep.png`} width="100%" alt="asleep"/>) :
             (<img src={`${BASE_URL}/../web/pictures/awake.png`} width="100%" alt="awake"/>)}
             </Typography>
-          </Grid>  
+          </Grid>
 
           <Grid item xs={4}>
-          &nbsp; 
+          &nbsp;
             <Typography align="center">{metrics["watchdog_on"]? "Watch dog is running" : "Watch dog disabled"}</Typography>
             &nbsp;
             <Typography align="center">
             {metrics["watchdog_on"] ?
                 (<NotificationAddSharpIcon/>
-                ) : (<NotificationsOffSharpIcon/>)  
+                ) : (<NotificationsOffSharpIcon/>)
             }
             <Switch
               checked={metrics["watchdog_on"]}
               onChange={handleToggleWatchDog}
            /></Typography>
-          </Grid>  
+          </Grid>
+
+          {/* Brightness Control */}
+          <Grid item xs={12}>
+            <Typography variant="h6" component="h6"> Brightness: </Typography>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <BrightnessControl />
+          </Grid>
+
+          {/* Sleep Schedule */}
+          <Grid item xs={12}>
+            <SleepScheduleControl />
+          </Grid>
+
           <Grid item xs={12}>
             <Typography variant="h6" component="h6"> Monitoring: </Typography>
           </Grid>
-      
+
           {Object.entries(metrics).map(([key, value]) => (
             <>
-            {['sleeping', 'watchdog_on'].includes(key) ? ( <></>) : ( 
-              
+            {['sleeping', 'watchdog_on'].includes(key) ? ( <></>) : (
+
             <Grid item xs={12} sm={6} md={3} key={key}>
-          
+
               <Paper elevation={2} sx={{ padding: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                {metricIcons[key] || <StorageIcon />} {/* Fallback to a default icon if specific one is not found */}
+                {metricIcons[key] || <StorageIcon />}
                 <div>
                   <Typography variant="h6" component="h2" gutterBottom>
                     {key.replace(/_/g, ' ')}
@@ -140,14 +155,14 @@ const StatusViewer = () => {
                   <Typography variant="body1">{value}</Typography>
                 </div>
               </Paper>
-              
+
             </Grid>
-            )}            
+            )}
             </>
           ))}
         </Grid>
       </Container>
     );
   };
-  
+
 export default StatusViewer;

@@ -476,6 +476,117 @@ class WatchDogSet(Resource):
         print(f"set watchdog state to {bool_state}")
         return bool_to_on_off(get_executor().watchdog(bool_state))
 
+@api.route("/power/restart")
+class Restart(Resource):
+    def get(self):
+        """Restart the pixel-pulse-neo service.
+        """
+        import subprocess
+        try:
+            logger.info("Restarting pixel-pulse-neo service...")
+            subprocess.Popen(["sudo", "systemctl", "restart", "pixel-pulse-neo.service"])
+            return jsonify({"result": "Service restart initiated"})
+        except Exception as e:
+            logger.error(f"Error during restart: {e}")
+            return make_response(jsonify({"error": str(e)}), 500)
+
+
+# Brightness control endpoints
+from Matrix.driver.brightness import (
+    get_current_brightness, 
+    set_manual_brightness, 
+    get_manual_override,
+    adjust_brightness
+)
+
+@api.route("/brightness")
+class Brightness(Resource):
+    def get(self):
+        """Get current brightness level and mode."""
+        override = get_manual_override()
+        return {
+            "brightness": get_current_brightness(),
+            "mode": "manual" if override is not None else "auto",
+            "manual_override": override
+        }
+    
+    def post(self):
+        """Set brightness. Use {"value": 50} for manual or {"value": null} for auto."""
+        data = request.get_json() or {}
+        value = data.get("value")
+        if value is not None:
+            value = int(value)
+        new_brightness = set_manual_brightness(value)
+        override = get_manual_override()
+        return {
+            "brightness": new_brightness,
+            "mode": "manual" if override is not None else "auto",
+            "manual_override": override
+        }
+
+@api.route("/brightness/adjust")
+class BrightnessAdjust(Resource):
+    def post(self):
+        """Adjust brightness by delta (-100 to +100)."""
+        data = request.get_json() or {}
+        delta = int(data.get("delta", 0))
+        delta = max(-100, min(100, delta))
+        new_brightness = adjust_brightness(delta)
+        override = get_manual_override()
+        return {
+            "brightness": new_brightness,
+            "mode": "manual" if override is not None else "auto",
+            "manual_override": override
+        }
+
+
+# Sleep schedule endpoints
+from Matrix.driver.sleep_schedule import (
+    get_schedule_with_names,
+    set_day_schedule,
+    set_schedule,
+    start_scheduler,
+    should_be_sleeping
+)
+
+@api.route("/sleep-schedule")
+class SleepSchedule(Resource):
+    def get(self):
+        """Get current sleep/wake schedule for all days."""
+        schedule = get_schedule_with_names()
+        return {
+            "schedule": schedule,
+            "should_be_sleeping": should_be_sleeping()
+        }
+    
+    def post(self):
+        """Set entire sleep schedule."""
+        data = request.get_json() or {}
+        new_schedule = data.get("schedule", {})
+        updated = set_schedule(new_schedule)
+        return {"schedule": updated, "success": True}
+
+@api.route("/sleep-schedule/<int:day>")
+class SleepScheduleDay(Resource):
+    def get(self, day):
+        """Get sleep schedule for specific day (0=Monday, 6=Sunday)."""
+        schedule = get_schedule_with_names()
+        day_str = str(day)
+        if day_str in schedule:
+            return schedule[day_str]
+        return {"error": "Invalid day"}, 400
+    
+    def post(self, day):
+        """Set sleep schedule for specific day."""
+        data = request.get_json() or {}
+        updated = set_day_schedule(
+            day,
+            sleep_time=data.get("sleep"),
+            wake_time=data.get("wake"),
+            enabled=data.get("enabled")
+        )
+        return {"schedule": updated, "success": True}
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--debug", help="enable flash debug mode", action="store_true")
@@ -490,17 +601,3 @@ if __name__ == "__main__":
 
     print(f"start API server with debug={debug} and use_reloader={reload}")
     app.run(debug=debug, use_reloader=reload, host="0.0.0.0")
-
-@api.route("/power/restart")
-class Restart(Resource):
-    def get(self):
-        """Restart the pixel-pulse-neo service.
-        """
-        import subprocess
-        try:
-            logger.info("Restarting pixel-pulse-neo service...")
-            subprocess.Popen(["sudo", "systemctl", "restart", "pixel-pulse-neo.service"])
-            return jsonify({"result": "Service restart initiated"})
-        except Exception as e:
-            logger.error(f"Error during restart: {e}")
-            return make_response(jsonify({"error": str(e)}), 500)
