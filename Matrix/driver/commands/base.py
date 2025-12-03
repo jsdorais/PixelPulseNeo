@@ -1,5 +1,6 @@
 import os
 import time
+import tracemalloc
 import gc
 import traceback
 import json
@@ -256,10 +257,26 @@ class BaseCommand:
                     
                     self.process_message_if_needed()
                     if frame_nb >0 and frame_nb %500==0:
-                        fps: float = int(frame_nb / (time.time() - t0)) 
+                        fps: float = int(frame_nb / (time.time() - t0))
                         logger.info(f"[{self.name}] fps={fps}")
                         update_matrix_brightness(get_matrix())
-                        #print(f"[{self.name}] FPS = {fps}")
+                        gc.collect()
+                        # Memory profiling every 1000 frames - show diffs
+                        if frame_nb % 1000 == 0:
+                            try:
+                                import linecache
+                                linecache.clearcache()  # Clear linecache to prevent leak
+                                snapshot = tracemalloc.take_snapshot()
+                                if not hasattr(self, '_prev_snapshot'):
+                                    self._prev_snapshot = snapshot
+                                else:
+                                    top_stats = snapshot.compare_to(self._prev_snapshot, 'lineno')[:5]
+                                    logger.info(f"[{self.name}] Memory CHANGES since last check:")
+                                    for stat in top_stats:
+                                        logger.info(f"  {stat}")
+                                    self._prev_snapshot = snapshot
+                            except Exception as e:
+                                logger.info(f"[{self.name}] tracemalloc error: {e}")
                 return (res, None)
         except Exception as e:
             tb: str = traceback.format_exc()

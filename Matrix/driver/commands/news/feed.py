@@ -128,7 +128,15 @@ def get(url, max_width, max_height, max_items=6) -> FeedWrapper:
 
 
 def getImage(img_url):
-    return Image.open(urlopen(img_url)).convert("RGB")
+    """Fetch image from URL, properly closing connection."""
+    try:
+        response = urlopen(img_url, timeout=10)
+        img = Image.open(response).convert("RGB")
+        response.close()
+        return img
+    except Exception as e:
+        print(f"[feed] Error fetching image: {e}", flush=True)
+        return None
 
 
 def format_multilines(summary, font, width):

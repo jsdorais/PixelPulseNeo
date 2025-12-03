@@ -1,4 +1,10 @@
 import logging
+import tracemalloc
+
+# Start memory tracing
+tracemalloc.start()
+_last_snapshot = None
+_snapshot_count = 0
 from typing import Any, Callable
 import threading
 import time
