@@ -1,5 +1,6 @@
 import os
 import time
+import gc
 import traceback
 import json
 from datetime import datetime
@@ -445,7 +446,14 @@ class PictureScrollBaseCmd(MatrixBaseCmd):
 
         if self.refresh:
             self.image_counter += 1
+            old_image = self.image
             self.image = self.generate_image(args, kwargs)
+            # Close old image to prevent memory leak
+            if old_image is not None and old_image is not self.image:
+                try:
+                    old_image.close()
+                except:
+                    pass
         return f"rendered {self.image_counter} images"
 
 
